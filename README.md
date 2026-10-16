@@ -130,7 +130,22 @@ in `out/pixel/grids/<name>.txt`.
 | `pixelkit/render.py` | operations: `resize`, `recolor`, `ramp_shift`, `outline`, `shift`, `flip_*`, `pad_canvas`, `sheet` |
 | `pixelkit/verify.py` | `palette_conformance`, `silhouette_iou`, `compare`, `diff_image`, `silhouette_check` |
 | `pixelkit/cli.py` | the `python -m pixelkit <command>` surface |
-| `.agents/skills/` | the instructions an agent loads to do this work |
+| `sprites/palette.json` | the frozen palette the shipped sprite set is defined by |
+| `.agents/skills/pixel-art-redraw/` | the instructions an agent loads to do this work |
+
+Three more files in `sprites/` are **not wired to any command**: `body.py`,
+`faces.py` and `standing.py` build standing and flying poses procedurally, because
+the reference is a seated pose that no patch list can turn around. They work —
+`standing_poses(grid, palette)` returns nine poses, and the trio resolves its own
+imports — but they were written for a set that was never shipped, so no driver
+calls them.
+
+## Third-party material
+
+The `pixel-art-sprites` skill is a verbatim copy of
+[omer-metin/skills-for-antigravity](https://github.com/omer-metin/skills-for-antigravity)
+under the Apache License 2.0, which is why it carries its own license file inside the
+directory. Everything else here is MIT. See [THIRD-PARTY.md](THIRD-PARTY.md).
 
 ## The rules that make it look like pixel art
 
