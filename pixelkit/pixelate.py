@@ -303,7 +303,14 @@ def _components(flag: np.ndarray, min_area: int = 1) -> list[tuple[int, int, int
 
 
 def skin_regions(rgb: np.ndarray, background: np.ndarray, *, min_area: int = 40) -> list[tuple]:
-    """Bounding boxes of the warm, light skin areas (face, hands, knees)."""
+    """Bounding boxes of the warm, light skin areas (face, hands, knees).
+
+    TUNED TO THIS CHARACTER. ``r > 180`` and ``r - g > 15`` assume a light, warm
+    skin tone; a character with dark skin, fur, scales, armour or a mask matches
+    nothing. That matters more than it looks: :func:`eye_regions` uses this as its
+    closed-eye fallback, so failing here costs the *whole* eye protection, not
+    just the face box.
+    """
     r, g, b = rgb[..., 0], rgb[..., 1], rgb[..., 2]
     skin = (~background) & (r > 180) & (r - b > 30) & (r - g > 15) & (r - g < 90)
     return _components(skin, min_area)
@@ -317,17 +324,23 @@ def eye_regions(
     min_area: int = 2,
     face_pad: int = 2,
 ) -> np.ndarray:
-    """Protect the eyes: the iris is the only saturated green in the sprite.
+    """Protect the eyes: find the iris, then the face under it.
 
-    Everything else the drafts use is black, brown, tan or skin, so a green-dominant
-    test finds the irises without any hand-tuned coordinates.  Their bounding boxes,
-    grown by ``pad`` pixels, cover the sclera and the specular highlight too —
-    which matters, because the white we *keep* and the white we *delete* look
-    identical pixel for pixel.
+    TUNED TO THIS CHARACTER, on both halves of the rule. The iris is found as the
+    only saturated green (``g - max(r, b) > 25``), and the closed-eye fallback
+    needs a light, warm skin tone to find a face at all (see
+    :func:`skin_regions`). A blue-, brown- or red-eyed character, an animal, a
+    robot or a dark-skinned one matches neither: the mask comes back empty, and
+    the glow rule then eats the sclera and the specular highlight. Rewrite both
+    tests before pointing this at another character — everything else in this
+    module takes its thresholds as arguments and is not character-bound.
 
-    Closed-eye frames have no iris left to find (a drawn ``^^`` is a dark line), so
-    the topmost skin region — the face — is protected as a whole.  That is what
-    keeps the highlights of ``ухмылка`` and ``счастлива`` alive.
+    Given a green iris, its bounding box grown by ``pad`` pixels covers the
+    sclera and the specular highlight too — which matters, because the white we
+    *keep* and the white we *delete* look identical pixel for pixel. Closed-eye
+    frames have no iris left to find (a drawn ``^^`` is a dark line), so the
+    topmost skin region — the face — is protected as a whole; that is what keeps
+    the highlights of a closed-eye frame alive.
     """
     r, g, b = rgb[..., 0], rgb[..., 1], rgb[..., 2]
     green = (g - np.maximum(r, b) > 25) & ~background
@@ -622,6 +635,15 @@ def pixelate(
     With ``clear_light_haze`` the generator's white glow on the hair and the soft
     grey ground shadow are deleted, while ``protect_eyes`` keeps the sclera and the
     specular highlights (see :func:`eye_regions`).
+
+    Every threshold is an argument, so the character is not baked in here — but the
+    *defaults* were picked by hand on one set: twelve drafts of one witch, four
+    frames swept over five values. ``haze_luminance``, ``haze_chroma``,
+    ``haze_enclosure``, the background distance in ``_trim`` (40) and the palette
+    merge distance (11.0) are all tuned, not derived. Expect to sweep them again
+    for a different generator, a different cell size or a different palette.
+    The two exceptions that *are* character-bound are :func:`eye_regions` and
+    :func:`skin_regions`; set ``protect_eyes=False`` on a character they do not fit.
     """
     arr = arr[..., :3].astype(np.float32)
     bg = background_colour(arr)
